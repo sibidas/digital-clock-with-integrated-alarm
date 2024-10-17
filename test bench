@@ -1,0 +1,100 @@
+//test bench
+
+`timescale 1ns/1ps
+
+module tb_digital_clock_with_alarm_12hr;
+
+    // Testbench signals
+    reg clk;                      // Clock input
+    reg reset;                    // Reset input
+    reg set_alarm;                // Set alarm input
+    reg [7:0] alarm_hours_in;     // Alarm hours input
+    reg [7:0] alarm_minutes_in;   // Alarm minutes input
+    reg [7:0] alarm_seconds_in;   // Alarm seconds input
+    wire [7:0] hours;             // Hours output
+    wire [7:0] minutes;           // Minutes output
+    wire [7:0] seconds;           // Seconds output
+    wire am_pm;                   // AM/PM indicator output
+    wire alarm_trigger;           // Alarm trigger output
+
+    // Instantiate the clock module
+    digital_clock_with_alarm_12hr uut (
+        .clk(clk),
+        .reset(reset),
+        .set_alarm(set_alarm),
+        .alarm_hours_in(alarm_hours_in),
+        .alarm_minutes_in(alarm_minutes_in),
+        .alarm_seconds_in(alarm_seconds_in),
+        .hours(hours),
+        .minutes(minutes),
+        .seconds(seconds),
+        .am_pm(am_pm),
+        .alarm_trigger(alarm_trigger)
+    );
+
+    // Clock generation
+    initial begin
+      
+        forever #5 clk = ~clk; 
+    end
+
+    // Test procedure
+    initial begin
+        // Initialize inputs
+          clk = 1;
+        reset = 1;
+        set_alarm = 0;
+        alarm_hours_in = 8'd0;
+        alarm_minutes_in = 8'd0;
+        alarm_seconds_in = 8'd0;
+
+        // Apply reset
+        #20 reset = 0; // Release reset after 20 ns
+
+        // Wait for a few clock cycles to observe default behavior
+        #1000;
+
+        // Set alarm time to 12:00:10 AM
+        set_alarm = 1;
+        alarm_hours_in = 8'd12;    // Alarm hours
+        alarm_minutes_in = 8'd0;   // Alarm minutes
+        alarm_seconds_in = 8'd10;  // Alarm seconds
+
+        // Hold set_alarm high for one cycle
+        #20 set_alarm = 0;
+
+        // Wait to observe the alarm trigger
+        #1000;
+
+        // Fast forward simulation to just before the alarm time
+        fast_forward_time(8'd11, 8'd59, 8'd59, 1'b0); // Set to 11:59:59 AM
+
+        // Run the simulation to observe the clock and alarm behavior
+        #1000;
+
+        // Fast forward simulation to just before the PM toggle
+        fast_forward_time(8'd11, 8'd59, 8'd59, 1'b1); // Set to 11:59:59 PM
+
+        // Run the simulation to observe the clock and PM toggle behavior
+        #1000;
+
+        // Stop the simulation
+        $stop;
+    end
+
+    // Task to fast forward time
+    task fast_forward_time(input [7:0] target_hours, input [7:0] target_minutes, input [7:0] target_seconds, input target_am_pm);
+        begin
+            while (hours != target_hours || minutes != target_minutes || seconds != target_seconds || am_pm != target_am_pm) begin
+                #10; // Wait a bit, this task will keep looping until the condition is met
+            end
+        end
+    endtask
+
+    // Monitor for debug
+    initial begin
+        $monitor("Time: %0t | Hours: %0d | Minutes: %0d | Seconds: %0d | AM/PM: %0s | Alarm Trigger: %0b",
+                 $time, hours, minutes, seconds, (am_pm ? "PM" : "AM"), alarm_trigger);
+    end
+
+endmodule
